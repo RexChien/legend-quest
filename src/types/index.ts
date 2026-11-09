@@ -150,6 +150,8 @@ export interface BattleState {
   logs: BattleLog[];
   comboActive: boolean; // true if armor break or holy blessing is primed
   comboSource?: string;
+  campfireUsed?: boolean;
+  chestOpened?: boolean;
 }
 
 export interface BattleLog {

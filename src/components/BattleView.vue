@@ -8,6 +8,9 @@ import {
   Sparkles,
   Trophy,
   ChevronRight,
+  Flame,
+  Gem,
+  Check,
 } from 'lucide-vue-next';
 import type { BattleState, ActionChoice, Equipment } from '../types';
 import BigActionButton from './BigActionButton.vue';
@@ -58,12 +61,40 @@ const isReady = computed(() => {
   return currentPlayer.value?.isReady || false;
 });
 
+const currentNode = computed(() => {
+  return DUNGEON_NODES[props.battleState.currentNodeIndex] || DUNGEON_NODES[0];
+});
+
 const nextNode = computed(() => {
   return DUNGEON_NODES[props.battleState.currentNodeIndex + 1] || null;
 });
 
 // 監聽鍵盤 1, 2, 3, 4 與 空白鍵 快捷決策
 function handleKeyDown(event: KeyboardEvent) {
+  if (currentNode.value.type === 'campfire') {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      if (!props.battleState.campfireUsed) {
+        emit('rest-campfire');
+      } else {
+        emit('advance-node');
+      }
+    }
+    return;
+  }
+
+  if (currentNode.value.type === 'chest') {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      if (!props.battleState.chestOpened) {
+        emit('open-chest');
+      } else {
+        emit('advance-node');
+      }
+    }
+    return;
+  }
+
   if (props.battleState.phase === 'victory') {
     if (event.key === 'Enter' || event.key === ' ' || event.key === '1') {
       event.preventDefault();
@@ -112,12 +143,12 @@ function toggleBgm() {
     <div class="flex items-center justify-between bg-slate-900/90 border-2 border-slate-800 rounded-2xl px-4 py-2.5 shadow-lg">
       <div class="flex items-center gap-3">
         <span class="text-sm font-black text-amber-300 bg-amber-950/80 px-3 py-1 rounded-xl border border-amber-500/40">
-          回合 {{ battleState.round }}
+          {{ currentNode.type === 'campfire' ? '營火休整' : currentNode.type === 'chest' ? '寶箱秘室' : `回合 ${battleState.round}` }}
         </span>
 
         <!-- 連攜點亮警示橫幅 -->
         <div
-          v-if="battleState.comboActive"
+          v-if="battleState.comboActive && (currentNode.type === 'battle' || currentNode.type === 'boss')"
           class="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-gradient-to-r from-yellow-500/30 to-amber-500/20 border border-yellow-400 text-yellow-300 text-xs font-black anim-combo-glow"
         >
           <Sparkles class="w-4 h-4 fill-yellow-400 text-yellow-300" />
@@ -175,12 +206,10 @@ function toggleBgm() {
       :is-host="isHost"
       :battle-phase="battleState.phase"
       @advance-node="$emit('advance-node')"
-      @rest-campfire="$emit('rest-campfire')"
-      @open-chest="$emit('open-chest')"
     />
 
-    <!-- 戰鬥主舞台：怪物與隊伍陣列 -->
-    <div v-if="currentMonster" class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-center">
+    <!-- 主舞台：隊伍卡片 + (怪物 / 營火 / 寶箱) -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-center">
       <!-- 隊伍三人卡片 (7 欄寬) -->
       <div class="lg:col-span-7 grid grid-cols-1 sm:grid-cols-3 gap-3">
         <TeammateCard
@@ -194,9 +223,93 @@ function toggleBgm() {
         />
       </div>
 
-      <!-- 敵方怪物卡片 (5 欄寬) -->
-      <div class="lg:col-span-5 flex justify-center">
+      <!-- 右側區域 (5 欄寬)：依節點展示 怪物、營火、或寶箱 -->
+      <div class="lg:col-span-5 flex justify-center w-full">
+        <!-- 1. 營火營地專屬卡片 -->
+        <div
+          v-if="currentNode.type === 'campfire'"
+          class="relative w-full max-w-md rounded-3xl border-2 border-amber-500/80 bg-gradient-to-b from-amber-950/70 via-slate-900/90 to-slate-950 p-6 text-center shadow-2xl shadow-amber-500/20"
+        >
+          <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-300 text-xs font-bold mb-3">
+            <Flame class="w-4 h-4 fill-amber-400 text-amber-300 animate-pulse" />
+            <span>幽暗營火庇護所（非戰鬥區）</span>
+          </div>
+
+          <h3 class="text-2xl font-black text-amber-100 mb-2">微光營地休整</h3>
+          <p class="text-xs text-amber-200/80 mb-4 leading-relaxed">
+            燃燒的篝火驅散了寒氣與恐懼。全隊可在火堆旁烤火療傷一次，全員恢復 45% 最大生命值。
+          </p>
+
+          <!-- 營火大圖示 -->
+          <div class="w-28 h-28 mx-auto my-3 rounded-full bg-gradient-to-b from-amber-500/20 to-orange-500/10 border-2 border-amber-400/60 flex items-center justify-center shadow-inner">
+            <Flame class="w-16 h-16 text-amber-400 fill-amber-500/80 animate-bounce" />
+          </div>
+
+          <!-- 烤火狀態按鈕 -->
+          <div class="mt-4">
+            <button
+              v-if="!battleState.campfireUsed"
+              type="button"
+              class="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-slate-950 font-black text-sm cursor-pointer shadow-xl shadow-amber-500/30 flex items-center justify-center gap-2 transition active:scale-95"
+              @click="emit('rest-campfire')"
+            >
+              <Flame class="w-4 h-4 fill-slate-950" />
+              <span>點燃篝火：全員恢復 45% HP（限一次）</span>
+            </button>
+            <div
+              v-else
+              class="py-3 px-4 rounded-2xl bg-emerald-950/80 border border-emerald-500/60 text-emerald-300 font-bold text-xs flex items-center justify-center gap-2"
+            >
+              <Check class="w-4 h-4 text-emerald-400 stroke-[3]" />
+              <span>全員已完成烤火修整，活力充沛！</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. 符文寶箱專屬卡片 -->
+        <div
+          v-else-if="currentNode.type === 'chest'"
+          class="relative w-full max-w-md rounded-3xl border-2 border-yellow-400/80 bg-gradient-to-b from-amber-950/60 via-slate-900/90 to-slate-950 p-6 text-center shadow-2xl shadow-yellow-500/20"
+        >
+          <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-yellow-500/20 border border-yellow-400/40 text-yellow-300 text-xs font-bold mb-3">
+            <Sparkles class="w-4 h-4 fill-yellow-400 text-yellow-300" />
+            <span>遠古秘寶石室（無怪物威脅）</span>
+          </div>
+
+          <h3 class="text-2xl font-black text-yellow-100 mb-2">遠古符文寶箱</h3>
+          <p class="text-xs text-yellow-200/80 mb-4 leading-relaxed">
+            石室中央散發著幽微金光的古代秘寶箱。開啟將為全體隊友各獲得一件稀有/史詩級裝備！
+          </p>
+
+          <!-- 寶箱大圖示 -->
+          <div class="w-28 h-28 mx-auto my-3 rounded-full bg-gradient-to-b from-yellow-500/20 to-amber-500/10 border-2 border-yellow-400/60 flex items-center justify-center shadow-inner anim-combo-glow">
+            <Gem class="w-16 h-16 text-yellow-300" />
+          </div>
+
+          <!-- 開箱狀態按鈕 -->
+          <div class="mt-4">
+            <button
+              v-if="!battleState.chestOpened"
+              type="button"
+              class="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-yellow-400 to-amber-500 hover:from-yellow-300 hover:to-amber-400 text-slate-950 font-black text-sm cursor-pointer shadow-xl shadow-yellow-500/30 flex items-center justify-center gap-2 transition active:scale-95 animate-pulse"
+              @click="emit('open-chest')"
+            >
+              <Sparkles class="w-4 h-4 fill-slate-950" />
+              <span>開啟遠古寶箱：全員領取神裝（限開一次）</span>
+            </button>
+            <div
+              v-else
+              class="py-3 px-4 rounded-2xl bg-emerald-950/80 border border-emerald-500/60 text-emerald-300 font-bold text-xs flex items-center justify-center gap-2"
+            >
+              <Check class="w-4 h-4 text-emerald-400 stroke-[3]" />
+              <span>寶箱已開啟！全員已換上古代神裝！</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. 戰鬥節點：怪物卡片 -->
         <MonsterCard
+          v-else-if="currentMonster"
           :monster="currentMonster"
           :is-attacking="activeAttackerId === currentMonster.id"
           :is-hit="activeTargetId === currentMonster.id"
@@ -229,9 +342,63 @@ function toggleBgm() {
 
     <!-- 巨型決策操作按鈕甲板 (Accessibility-First) -->
 
-    <!-- 1. 戰鬥大獲全勝甲板 -->
+    <!-- 1. 營火專屬行動甲板 -->
     <div
-      v-if="battleState.phase === 'victory'"
+      v-if="currentNode.type === 'campfire'"
+      class="bg-gradient-to-r from-amber-950/90 via-slate-900 to-amber-950/90 border-2 border-amber-500/80 rounded-3xl p-5 shadow-2xl"
+    >
+      <div class="flex items-center justify-between flex-wrap gap-4">
+        <div class="text-left">
+          <h4 class="text-base font-black text-amber-200 flex items-center gap-2">
+            <Flame class="w-5 h-5 fill-amber-400 text-amber-300" />
+            營火營地休整：此地無怪物，享受安歇時光
+          </h4>
+          <p class="text-xs text-slate-300 mt-0.5">
+            {{ battleState.campfireUsed ? '全員生命值已回復，請點擊右方按鈕啟程。' : '點擊上方營火按鈕可為全員恢復 45% 生命值。' }}
+          </p>
+        </div>
+
+        <button
+          type="button"
+          class="px-8 py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-slate-950 font-black text-sm cursor-pointer shadow-lg shadow-amber-500/25 flex items-center gap-2 transition active:scale-95 ml-auto"
+          @click="emit('advance-node')"
+        >
+          <span>整備就緒，出發前往下一站：{{ nextNode?.title }}</span>
+          <ChevronRight class="w-5 h-5 stroke-[3]" />
+        </button>
+      </div>
+    </div>
+
+    <!-- 2. 寶箱專屬行動甲板 -->
+    <div
+      v-else-if="currentNode.type === 'chest'"
+      class="bg-gradient-to-r from-yellow-950/90 via-slate-900 to-yellow-950/90 border-2 border-yellow-400/80 rounded-3xl p-5 shadow-2xl"
+    >
+      <div class="flex items-center justify-between flex-wrap gap-4">
+        <div class="text-left">
+          <h4 class="text-base font-black text-yellow-200 flex items-center gap-2">
+            <Gem class="w-5 h-5 text-yellow-300" />
+            秘寶石室：安全無威脅，點擊上方寶箱領取神裝
+          </h4>
+          <p class="text-xs text-slate-300 mt-0.5">
+            {{ battleState.chestOpened ? '全體隊員已完成裝備更新，請點擊右方按鈕前往下一節點。' : '請先點擊上方寶箱開啟領取神裝（限開一次）！' }}
+          </p>
+        </div>
+
+        <button
+          type="button"
+          class="px-8 py-3.5 rounded-2xl bg-gradient-to-r from-yellow-400 to-amber-500 hover:from-yellow-300 hover:to-amber-400 text-slate-950 font-black text-sm cursor-pointer shadow-lg shadow-yellow-500/25 flex items-center gap-2 transition active:scale-95 ml-auto"
+          @click="emit('advance-node')"
+        >
+          <span>收好神裝，啟程前往下一節點：{{ nextNode?.title }}</span>
+          <ChevronRight class="w-5 h-5 stroke-[3]" />
+        </button>
+      </div>
+    </div>
+
+    <!-- 3. 戰鬥大獲全勝甲板 -->
+    <div
+      v-else-if="battleState.phase === 'victory'"
       class="bg-gradient-to-r from-amber-950/90 via-yellow-900/90 to-amber-950/90 border-2 border-yellow-400 rounded-3xl p-6 text-center shadow-2xl anim-combo-glow"
     >
       <div class="flex items-center justify-center gap-2 mb-2">
@@ -245,7 +412,7 @@ function toggleBgm() {
 
       <button
         type="button"
-        class="w-full max-w-md mx-auto py-4 px-6 rounded-2xl bg-gradient-to-r from-yellow-400 via-amber-400 to-yellow-500 hover:from-yellow-300 hover:to-amber-300 text-slate-950 font-black text-base cursor-pointer shadow-xl shadow-yellow-500/30 flex items-center justify-center gap-3 transition transform hover:scale-102 active:scale-98"
+        class="w-full max-w-md mx-auto py-4 px-6 rounded-2xl bg-gradient-to-r from-yellow-400 via-amber-400 to-yellow-500 hover:from-yellow-300 hover:to-amber-400 text-slate-950 font-black text-base cursor-pointer shadow-xl shadow-yellow-500/30 flex items-center justify-center gap-3 transition transform hover:scale-102 active:scale-98"
         @click="emit('advance-node')"
       >
         <span v-if="nextNode">啟程前往下一節點：{{ nextNode.title }}</span>
@@ -254,7 +421,7 @@ function toggleBgm() {
       </button>
     </div>
 
-    <!-- 2. 滅團戰敗甲板 -->
+    <!-- 4. 滅團戰敗甲板 -->
     <div
       v-else-if="battleState.phase === 'defeat'"
       class="bg-slate-950 border-2 border-rose-600 rounded-3xl p-6 text-center shadow-2xl"
@@ -270,7 +437,7 @@ function toggleBgm() {
       </button>
     </div>
 
-    <!-- 3. 戰鬥決策甲板（回合出招） -->
+    <!-- 5. 戰鬥決策甲板（回合出招） -->
     <div v-else class="bg-slate-900/95 border-2 border-slate-800 rounded-3xl p-4 md:p-5 shadow-2xl">
       <div class="flex items-center justify-between mb-3 px-1">
         <div class="flex items-center gap-2">

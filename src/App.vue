@@ -284,6 +284,8 @@ function initDungeonBattle(party: Player[], nodeIdx: number) {
       },
     ],
     comboActive: false,
+    campfireUsed: false,
+    chestOpened: false,
   };
 
   selectedAction.value = null;
@@ -551,9 +553,11 @@ async function playTurnResolution(steps: ActionStep[], finalState: BattleState) 
 }
 
 /**
- * 營火休息（恢復全員 45% 最大生命值）
+ * 營火休息（恢復全員 45% 最大生命值，限一次）
  */
 function handleCampfireRest() {
+  if (battleState.value.campfireUsed) return;
+  battleState.value.campfireUsed = true;
   SoundManager.playHeal();
   for (const hero of battleState.value.players) {
     const healAmt = Math.round(hero.stats.maxHp * 0.45);
@@ -569,9 +573,11 @@ function handleCampfireRest() {
 }
 
 /**
- * 開啟符文寶箱（全員獲得裝備）
+ * 開啟符文寶箱（全員獲得裝備，限開一次）
  */
 function handleOpenChest() {
+  if (battleState.value.chestOpened) return;
+  battleState.value.chestOpened = true;
   SoundManager.playLoot();
   for (const hero of battleState.value.players) {
     const loot = generateRandomLoot();

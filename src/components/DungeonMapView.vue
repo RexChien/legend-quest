@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { Swords, Flame, Sparkles, Skull, Check, ChevronRight } from 'lucide-vue-next';
+import { Swords, Flame, Sparkles, Skull, Check } from 'lucide-vue-next';
 import { DUNGEON_NODES } from '../core/battleEngine';
 import type { DungeonNodeType } from '../types';
 
@@ -99,39 +99,6 @@ function getNodeIcon(type: DungeonNodeType) {
             {{ currentNode.description }}
           </p>
         </div>
-
-        <!-- 營火 / 寶箱 特殊事件按鈕 -->
-        <div v-if="currentNode.type === 'campfire'" class="shrink-0">
-          <button
-            type="button"
-            class="px-5 py-3 rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-sm cursor-pointer shadow-lg shadow-amber-500/30 flex items-center gap-2 active:scale-95 transition"
-            @click="emit('rest-campfire')"
-          >
-            <Flame class="w-4 h-4 fill-slate-950" /> 全員烤火 (+45% HP)
-          </button>
-        </div>
-
-        <div v-else-if="currentNode.type === 'chest'" class="shrink-0">
-          <button
-            type="button"
-            class="px-5 py-3 rounded-2xl bg-gradient-to-r from-yellow-500 to-amber-400 hover:from-yellow-400 hover:to-amber-300 text-slate-950 font-black text-sm cursor-pointer shadow-lg shadow-yellow-500/30 flex items-center gap-2 active:scale-95 transition animate-pulse"
-            @click="emit('open-chest')"
-          >
-            <Sparkles class="w-4 h-4 fill-slate-950" /> 開啟寶箱獲得神裝
-          </button>
-        </div>
-      </div>
-
-      <!-- 房主切換下一站按鈕 -->
-      <div v-if="isHost && (currentNode.type === 'campfire' || currentNode.type === 'chest' || battlePhase === 'victory')" class="mt-4 pt-3 border-t border-slate-800/80 flex justify-end">
-        <button
-          type="button"
-          class="px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-sm cursor-pointer shadow-lg shadow-amber-500/20 transition flex items-center gap-1.5"
-          @click="emit('advance-node')"
-        >
-          <span>整備完畢，進入下一節點</span>
-          <ChevronRight class="w-4 h-4" />
-        </button>
       </div>
     </div>
   </div>
