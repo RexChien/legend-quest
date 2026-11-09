@@ -1,0 +1,111 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --color-bg-dark: #0f111a;
+    --color-card-dark: #181b2a;
+    --color-border-dark: #2a2f45;
+  }
+
+  body {
+    background-color: #0d0f18;
+    color: #e2e8f0;
+    font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    user-select: none;
+    -webkit-user-select: none;
+    overflow-x: hidden;
+  }
+}
+
+/* Animations */
+@keyframes floatSlow {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-6px); }
+}
+
+@keyframes pulseGlow {
+  0%, 100% { filter: drop-shadow(0 0 8px rgba(234, 179, 8, 0.4)); }
+  50% { filter: drop-shadow(0 0 16px rgba(234, 179, 8, 0.8)); }
+}
+
+@keyframes shakeHit {
+  0% { transform: translate(0, 0) scale(1); }
+  20% { transform: translate(-8px, 4px) scale(0.96); filter: brightness(2) contrast(1.5); }
+  40% { transform: translate(8px, -4px) scale(1.02); filter: brightness(1.5); }
+  60% { transform: translate(-4px, 2px) scale(0.98); }
+  80% { transform: translate(4px, -1px) scale(1.01); }
+  100% { transform: translate(0, 0) scale(1); filter: brightness(1); }
+}
+
+@keyframes playerAttackRight {
+  0% { transform: translateX(0) scale(1); }
+  30% { transform: translateX(40px) scale(1.08); }
+  60% { transform: translateX(-8px) scale(0.98); }
+  100% { transform: translateX(0) scale(1); }
+}
+
+@keyframes playerAttackLeft {
+  0% { transform: translateX(0) scale(1); }
+  30% { transform: translateX(-40px) scale(1.08); }
+  60% { transform: translateX(8px) scale(0.98); }
+  100% { transform: translateX(0) scale(1); }
+}
+
+@keyframes floatNumber {
+  0% { opacity: 0; transform: translateY(10px) scale(0.8); }
+  25% { opacity: 1; transform: translateY(-15px) scale(1.3); }
+  70% { opacity: 1; transform: translateY(-35px) scale(1.1); }
+  100% { opacity: 0; transform: translateY(-55px) scale(0.9); }
+}
+
+@keyframes toastSlide {
+  0% { opacity: 0; transform: translate(-50%, -100%) scale(0.8); }
+  15% { opacity: 1; transform: translate(-50%, 0) scale(1.05); }
+  25% { transform: translate(-50%, 0) scale(1); }
+  85% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -80%) scale(0.9); }
+}
+
+.anim-idle {
+  animation: floatSlow 3.2s ease-in-out infinite;
+}
+
+.anim-hit {
+  animation: shakeHit 0.5s cubic-bezier(.36,.07,.19,.97) both;
+}
+
+.anim-attack {
+  animation: playerAttackRight 0.45s ease-out both;
+}
+
+.anim-monster-attack {
+  animation: playerAttackLeft 0.45s ease-out both;
+}
+
+.anim-combo-glow {
+  animation: pulseGlow 1.5s ease-in-out infinite;
+}
+
+.damage-float {
+  animation: floatNumber 1.2s ease-out forwards;
+}
+
+.toast-banner {
+  animation: toastSlide 4.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #111422;
+}
+::-webkit-scrollbar-thumb {
+  background: #2b324d;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #434d75;
+}
