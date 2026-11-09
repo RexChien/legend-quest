@@ -78,23 +78,25 @@ const showSaveModal = ref<'export' | 'import' | null>(null);
 const base64SaveInput = ref('');
 const saveCopySuccess = ref(false);
 
-onMounted(async () => {
+onMounted(() => {
   // 載入玩家存檔
   const save = SaveManager.load();
   playerName.value = save.playerName || '傳奇勇者';
   selectedClass.value = save.heroClass || 'berserker';
 
-  // 初始化 P2P Peer
-  try {
-    const id = await network.initPeer();
-    myPeerId.value = id;
-  } catch (e) {
-    console.warn('PeerJS init failed:', e);
-  }
+  // 延遲非同步初始化 P2P Peer，完全不阻塞畫面首次渲染
+  setTimeout(async () => {
+    try {
+      const id = await network.initPeer();
+      myPeerId.value = id;
+    } catch (e) {
+      console.warn('PeerJS init failed:', e);
+    }
+  }, 50);
 
   // 監聽 P2P 訊息廣播
-  network.onMessage((msg: P2PMessage, senderId: string) => {
-    handleIncomingP2P(msg, senderId);
+  network.onMessage((msg: P2PMessage, _senderId: string) => {
+    handleIncomingP2P(msg, _senderId);
   });
 });
 

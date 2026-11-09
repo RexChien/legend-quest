@@ -5,7 +5,7 @@ import tailwindcss from '@tailwindcss/vite'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [vue(), tailwindcss()],
-  base: './', // Ensures relative assets load seamlessly on GitHub Pages
+  base: '/legend-quest/', // Standard base for GitHub Pages at https://<user>.github.io/<repo>/
   build: {
     chunkSizeWarningLimit: 1000,
     rollupOptions: {

@@ -1,11 +1,25 @@
 // ==========================================
 // WebRTC P2P 點對點連線封裝 (PeerJS Host-as-Server)
 // ==========================================
-import Peer, { type DataConnection } from 'peerjs';
+import * as PeerModule from 'peerjs';
+import type { DataConnection } from 'peerjs';
 import type { P2PMessage } from '../types';
 
+// 安全解析 Peer 建構函式，防範 ESM/CJS interop 或環境差異
+function getPeerConstructor(): any {
+  const mod = PeerModule as any;
+  if (typeof mod === 'function') return mod;
+  if (typeof mod.Peer === 'function') return mod.Peer;
+  if (typeof mod.default === 'function') return mod.default;
+  if (mod.default && typeof mod.default.Peer === 'function') return mod.default.Peer;
+  if (typeof window !== 'undefined' && typeof (window as any).Peer === 'function') {
+    return (window as any).Peer;
+  }
+  return null;
+}
+
 export class NetworkManager {
-  private peer: Peer | null = null;
+  private peer: any = null;
   public myPeerId = '';
   public isHost = false;
   public currentRoomId = '';
@@ -18,41 +32,69 @@ export class NetworkManager {
   constructor() {}
 
   /**
-   * 初始化本機 Peer
+   * 初始化本機 Peer (具備防卡死超時與 Fallback 機制)
    */
   public async initPeer(customId?: string): Promise<string> {
-    return new Promise((resolve, _reject) => {
-      // 產生短前綴房間 ID
+    return new Promise((resolve) => {
       const prefix = 'lq-';
       const rand = Math.random().toString(36).substring(2, 6);
       const chosenId = customId || `${prefix}${rand}`;
 
-      this.peer = new Peer(chosenId, {
-        debug: 1,
-      });
+      const PeerClass = getPeerConstructor();
+      if (!PeerClass) {
+        console.warn('PeerJS constructor not available, using offline fallback ID');
+        this.myPeerId = chosenId;
+        resolve(chosenId);
+        return;
+      }
 
-      this.peer.on('open', (id) => {
-        this.myPeerId = id;
-        this.peerOpenHandlers.forEach((cb) => cb(id));
-        resolve(id);
-      });
-
-      this.peer.on('connection', (conn) => {
-        this.handleIncomingConnection(conn);
-      });
-
-      this.peer.on('error', (err) => {
-        console.warn('PeerJS error:', err);
-        // 如果 customId 衝突，允許回退
-        if (err.type === 'unavailable-id') {
-          const fallbackPeer = new Peer();
-          fallbackPeer.on('open', (fbId) => {
-            this.peer = fallbackPeer;
-            this.myPeerId = fbId;
-            resolve(fbId);
-          });
+      // 4 秒超時防線，確保任何網路或防火牆狀態下都不會卡死 UI
+      let resolved = false;
+      const timer = setTimeout(() => {
+        if (!resolved) {
+          resolved = true;
+          this.myPeerId = chosenId;
+          resolve(chosenId);
         }
-      });
+      }, 4000);
+
+      try {
+        this.peer = new PeerClass(chosenId, {
+          debug: 1,
+        });
+
+        this.peer.on('open', (id: string) => {
+          if (!resolved) {
+            resolved = true;
+            clearTimeout(timer);
+            this.myPeerId = id;
+            this.peerOpenHandlers.forEach((cb) => cb(id));
+            resolve(id);
+          }
+        });
+
+        this.peer.on('connection', (conn: DataConnection) => {
+          this.handleIncomingConnection(conn);
+        });
+
+        this.peer.on('error', (err: any) => {
+          console.warn('PeerJS error:', err);
+          if (!resolved) {
+            resolved = true;
+            clearTimeout(timer);
+            this.myPeerId = chosenId;
+            resolve(chosenId);
+          }
+        });
+      } catch (err) {
+        console.warn('Failed to construct Peer:', err);
+        if (!resolved) {
+          resolved = true;
+          clearTimeout(timer);
+          this.myPeerId = chosenId;
+          resolve(chosenId);
+        }
+      }
     });
   }
 
@@ -79,27 +121,37 @@ export class NetworkManager {
     this.currentRoomId = roomId.trim().toLowerCase();
 
     return new Promise((resolve) => {
-      const conn = this.peer!.connect(this.currentRoomId, {
-        reliable: true,
-      });
+      try {
+        if (!this.peer || typeof this.peer.connect !== 'function') {
+          resolve(false);
+          return;
+        }
 
-      conn.on('open', () => {
-        this.hostConnection = conn;
-        resolve(true);
-      });
+        const conn = this.peer.connect(this.currentRoomId, {
+          reliable: true,
+        });
 
-      conn.on('data', (data) => {
-        this.emitMessage(data as P2PMessage, conn.peer);
-      });
+        conn.on('open', () => {
+          this.hostConnection = conn;
+          resolve(true);
+        });
 
-      conn.on('close', () => {
-        this.peerDisconnectHandlers.forEach((cb) => cb(conn.peer));
-      });
+        conn.on('data', (data: unknown) => {
+          this.emitMessage(data as P2PMessage, conn.peer);
+        });
 
-      conn.on('error', (err) => {
-        console.warn('Connect to host error:', err);
+        conn.on('close', () => {
+          this.peerDisconnectHandlers.forEach((cb) => cb(conn.peer));
+        });
+
+        conn.on('error', (err: unknown) => {
+          console.warn('Connect to host error:', err);
+          resolve(false);
+        });
+      } catch (err) {
+        console.warn('joinRoom error:', err);
         resolve(false);
-      });
+      }
     });
   }
 
@@ -131,14 +183,12 @@ export class NetworkManager {
    */
   public broadcast(msg: P2PMessage) {
     if (this.isHost) {
-      // 房主直接發送給所有連接的 Client
       this.clientConnections.forEach((conn) => {
         if (conn.open) {
           conn.send(msg);
         }
       });
     } else {
-      // 隊友向房主發送，由房主轉發
       if (this.hostConnection && this.hostConnection.open) {
         this.hostConnection.send(msg);
       }

@@ -264,9 +264,11 @@ export const DEFAULT_AI_SNAPSHOTS: Player[] = [
 export const SaveManager = {
   load(): SaveData {
     try {
-      const raw = localStorage.getItem(SAVE_KEY);
-      if (raw) {
-        return JSON.parse(raw);
+      if (typeof window !== 'undefined' && window.localStorage) {
+        const raw = localStorage.getItem(SAVE_KEY);
+        if (raw) {
+          return JSON.parse(raw);
+        }
       }
     } catch (e) {
       console.warn('Failed to load save from localStorage', e);
@@ -294,7 +296,9 @@ export const SaveManager = {
 
   save(data: SaveData) {
     try {
-      localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+      if (typeof window !== 'undefined' && window.localStorage) {
+        localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+      }
     } catch (e) {
       console.error('Save failed', e);
     }
