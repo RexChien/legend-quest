@@ -7,6 +7,7 @@ import type { DungeonNodeType } from '../types';
 const props = defineProps<{
   currentNodeIndex: number;
   isHost: boolean;
+  battlePhase?: string;
 }>();
 
 const emit = defineEmits<{
@@ -122,13 +123,13 @@ function getNodeIcon(type: DungeonNodeType) {
       </div>
 
       <!-- 房主切換下一站按鈕 -->
-      <div v-if="isHost && (currentNode.type === 'campfire' || currentNode.type === 'chest')" class="mt-4 pt-3 border-t border-slate-800/80 flex justify-end">
+      <div v-if="isHost && (currentNode.type === 'campfire' || currentNode.type === 'chest' || battlePhase === 'victory')" class="mt-4 pt-3 border-t border-slate-800/80 flex justify-end">
         <button
           type="button"
-          class="px-6 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 font-bold text-sm cursor-pointer border border-slate-600 transition flex items-center gap-1"
+          class="px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-sm cursor-pointer shadow-lg shadow-amber-500/20 transition flex items-center gap-1.5"
           @click="emit('advance-node')"
         >
-          整備完畢，進入下一節點
+          <span>整備完畢，進入下一節點</span>
           <ChevronRight class="w-4 h-4" />
         </button>
       </div>

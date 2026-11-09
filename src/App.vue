@@ -250,6 +250,19 @@ async function handleJoinRoom() {
 }
 
 /**
+ * 為所有 AI 傭兵隊友預先生成本回合決策並標記為「已準備」
+ */
+function prepareAiActionsForRound() {
+  if (!network.isHost) return;
+  const aiPlayers = battleState.value.players.filter((p) => p.isAI && !p.isDowned);
+  for (const ai of aiPlayers) {
+    const aiChoice = generateAiAction(ai, battleState.value);
+    submittedActionsMap.set(ai.id, aiChoice);
+    ai.isReady = true;
+  }
+}
+
+/**
  * 初始化地牢戰鬥狀態
  */
 function initDungeonBattle(party: Player[], nodeIdx: number) {
@@ -279,6 +292,9 @@ function initDungeonBattle(party: Player[], nodeIdx: number) {
 
   // 播放戰鬥音樂
   MusicManager.play(nodeIdx === 4 ? 'boss' : 'battle');
+
+  // AI 傭兵就緒
+  prepareAiActionsForRound();
 }
 
 /**
@@ -349,6 +365,8 @@ function handleIncomingP2P(msg: P2PMessage, _senderId: string) {
  * 玩家點擊巨型決策按鈕選取行動
  */
 function handleSelectSkill(skillId: string) {
+  if (battleState.value.phase !== 'planning') return;
+
   const myPlayer = battleState.value.players.find((p) => p.id === myPeerId.value) || battleState.value.players[0];
   if (!myPlayer || myPlayer.isDowned || myPlayer.isReady) return;
 
@@ -392,11 +410,14 @@ function checkAndResolveTurn() {
 
   if (!allHumansReady) return;
 
-  // 為所有未倒地的 AI 傭兵生成決策
+  // 確保所有未倒地的 AI 傭兵決策齊全
   const aiPlayers = battleState.value.players.filter((p) => p.isAI && !p.isDowned);
   for (const ai of aiPlayers) {
-    const aiChoice = generateAiAction(ai, battleState.value);
-    submittedActionsMap.set(ai.id, aiChoice);
+    if (!submittedActionsMap.has(ai.id)) {
+      const aiChoice = generateAiAction(ai, battleState.value);
+      submittedActionsMap.set(ai.id, aiChoice);
+      ai.isReady = true;
+    }
   }
 
   // 收集所有行動清單
@@ -506,6 +527,10 @@ async function playTurnResolution(steps: ActionStep[], finalState: BattleState) 
 
   // 結算勝負
   if (finalState.phase === 'victory') {
+    // 勝利時重設所有人的 ready 狀態
+    for (const p of battleState.value.players) {
+      p.isReady = false;
+    }
     MusicManager.play('victory');
     SoundManager.playAchievement();
     try {
@@ -519,6 +544,9 @@ async function playTurnResolution(steps: ActionStep[], finalState: BattleState) 
   } else if (finalState.phase === 'defeat') {
     MusicManager.stop();
     SoundManager.playDefeat();
+  } else if (finalState.phase === 'planning') {
+    // 新回合開始，立即為所有未倒地的 AI 傭兵生成決策，標示為「已準備」
+    prepareAiActionsForRound();
   }
 }
 
@@ -573,6 +601,10 @@ function handleAdvanceNode() {
   if (!network.isHost) return;
   const nextIdx = battleState.value.currentNodeIndex + 1;
   if (nextIdx < DUNGEON_NODES.length) {
+    for (const p of battleState.value.players) {
+      p.isReady = false;
+      p.stats.shield = 0;
+    }
     initDungeonBattle(battleState.value.players, nextIdx);
     network.broadcast({
       type: 'ADVANCE_NODE',

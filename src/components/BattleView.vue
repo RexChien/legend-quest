@@ -7,6 +7,7 @@ import {
   LogOut,
   Sparkles,
   Trophy,
+  ChevronRight,
 } from 'lucide-vue-next';
 import type { BattleState, ActionChoice, Equipment } from '../types';
 import BigActionButton from './BigActionButton.vue';
@@ -15,6 +16,7 @@ import MonsterCard from './MonsterCard.vue';
 import DungeonMapView from './DungeonMapView.vue';
 import { SoundManager } from '../audio/sound';
 import { MusicManager } from '../audio/music';
+import { DUNGEON_NODES } from '../core/battleEngine';
 
 const props = defineProps<{
   battleState: BattleState;
@@ -56,8 +58,20 @@ const isReady = computed(() => {
   return currentPlayer.value?.isReady || false;
 });
 
+const nextNode = computed(() => {
+  return DUNGEON_NODES[props.battleState.currentNodeIndex + 1] || null;
+});
+
 // 監聽鍵盤 1, 2, 3, 4 與 空白鍵 快捷決策
 function handleKeyDown(event: KeyboardEvent) {
+  if (props.battleState.phase === 'victory') {
+    if (event.key === 'Enter' || event.key === ' ' || event.key === '1') {
+      event.preventDefault();
+      emit('advance-node');
+    }
+    return;
+  }
+
   if (props.isResolving || isCurrentPlayerDowned.value || isReady.value) return;
 
   const key = event.key;
@@ -159,6 +173,7 @@ function toggleBgm() {
     <DungeonMapView
       :current-node-index="battleState.currentNodeIndex"
       :is-host="isHost"
+      :battle-phase="battleState.phase"
       @advance-node="$emit('advance-node')"
       @rest-campfire="$emit('rest-campfire')"
       @open-chest="$emit('open-chest')"
@@ -213,12 +228,55 @@ function toggleBgm() {
     </div>
 
     <!-- 巨型決策操作按鈕甲板 (Accessibility-First) -->
-    <div class="bg-slate-900/95 border-2 border-slate-800 rounded-3xl p-4 md:p-5 shadow-2xl">
+
+    <!-- 1. 戰鬥大獲全勝甲板 -->
+    <div
+      v-if="battleState.phase === 'victory'"
+      class="bg-gradient-to-r from-amber-950/90 via-yellow-900/90 to-amber-950/90 border-2 border-yellow-400 rounded-3xl p-6 text-center shadow-2xl anim-combo-glow"
+    >
+      <div class="flex items-center justify-center gap-2 mb-2">
+        <Sparkles class="w-6 h-6 text-yellow-300 fill-yellow-400" />
+        <h3 class="text-2xl font-black text-yellow-100">🎉 戰鬥大獲全勝！敵人已被肅清！</h3>
+        <Sparkles class="w-6 h-6 text-yellow-300 fill-yellow-400" />
+      </div>
+      <p class="text-sm text-yellow-200/90 mb-5">
+        全員狀態整備完成。請點擊下方按鈕或按【空白鍵 / Enter】啟程前往下一節點！
+      </p>
+
+      <button
+        type="button"
+        class="w-full max-w-md mx-auto py-4 px-6 rounded-2xl bg-gradient-to-r from-yellow-400 via-amber-400 to-yellow-500 hover:from-yellow-300 hover:to-amber-300 text-slate-950 font-black text-base cursor-pointer shadow-xl shadow-yellow-500/30 flex items-center justify-center gap-3 transition transform hover:scale-102 active:scale-98"
+        @click="emit('advance-node')"
+      >
+        <span v-if="nextNode">啟程前往下一節點：{{ nextNode.title }}</span>
+        <span v-else>遠征通關！榮耀回城</span>
+        <ChevronRight class="w-6 h-6 stroke-[3]" />
+      </button>
+    </div>
+
+    <!-- 2. 滅團戰敗甲板 -->
+    <div
+      v-else-if="battleState.phase === 'defeat'"
+      class="bg-slate-950 border-2 border-rose-600 rounded-3xl p-6 text-center shadow-2xl"
+    >
+      <h3 class="text-2xl font-black text-rose-400 mb-2">💀 全軍覆沒... 本次冒險告終</h3>
+      <p class="text-sm text-slate-300 mb-5">全隊體力耗盡倒地，請返回大廳重整旗鼓。</p>
+      <button
+        type="button"
+        class="px-8 py-3.5 rounded-2xl bg-rose-600 hover:bg-rose-500 text-white font-black text-base cursor-pointer shadow-lg transition"
+        @click="emit('leave-game')"
+      >
+        返回冒險大廳
+      </button>
+    </div>
+
+    <!-- 3. 戰鬥決策甲板（回合出招） -->
+    <div v-else class="bg-slate-900/95 border-2 border-slate-800 rounded-3xl p-4 md:p-5 shadow-2xl">
       <div class="flex items-center justify-between mb-3 px-1">
         <div class="flex items-center gap-2">
           <span class="w-3 h-3 rounded-full" :class="isReady ? 'bg-emerald-400' : 'bg-amber-400 animate-ping'" />
           <h3 class="text-sm font-black text-slate-200">
-            {{ isReady ? '✅ 你的行動已鎖定！等待隊友完成選擇...' : '⚡ 請選擇本回合出招（可直接按鍵盤 1 ~ 4）' }}
+            {{ isReady ? '✅ 你的行動已鎖定！等待回合結算演出...' : '⚡ 請選擇本回合出招（可直接按鍵盤 1 ~ 4）' }}
           </h3>
         </div>
 

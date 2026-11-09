@@ -82,20 +82,28 @@ const hasArmorBreak = computed(() => props.monster.statusEffects.some((s) => s.i
       />
     </div>
 
-    <!-- 狀態標籤（破甲、嘲諷等） -->
+    <!-- 狀態標籤（破甲、嘲諷、死亡等） -->
     <div class="flex flex-wrap items-center justify-center gap-2 mb-3 min-h-[26px]">
       <span
-        v-if="hasArmorBreak"
-        class="text-xs font-bold px-2 py-0.5 rounded-md bg-yellow-950/80 text-yellow-300 border border-yellow-400/80 flex items-center gap-1 animate-pulse shadow-sm shadow-yellow-500/20"
+        v-if="isDead"
+        class="text-xs font-black px-3 py-1 rounded-full bg-red-600 text-white shadow-lg shadow-red-500/30 flex items-center gap-1.5"
       >
-        <ShieldOff class="w-3.5 h-3.5" /> 破甲狀態 (-30% DEF)
+        <Skull class="w-4 h-4" /> 討伐成功！目標已消滅
       </span>
-      <span
-        v-if="monster.tauntedById"
-        class="text-xs font-bold px-2 py-0.5 rounded-md bg-blue-950/80 text-blue-300 border border-blue-400/80 flex items-center gap-1 shadow-sm shadow-blue-500/20"
-      >
-        <ShieldAlert class="w-3.5 h-3.5" /> 仇恨鎖定中
-      </span>
+      <template v-else>
+        <span
+          v-if="hasArmorBreak"
+          class="text-xs font-bold px-2 py-0.5 rounded-md bg-yellow-950/80 text-yellow-300 border border-yellow-400/80 flex items-center gap-1 animate-pulse shadow-sm shadow-yellow-500/20"
+        >
+          <ShieldOff class="w-3.5 h-3.5" /> 破甲狀態 (-30% DEF)
+        </span>
+        <span
+          v-if="monster.tauntedById"
+          class="text-xs font-bold px-2 py-0.5 rounded-md bg-blue-950/80 text-blue-300 border border-blue-400/80 flex items-center gap-1 shadow-sm shadow-blue-500/20"
+        >
+          <ShieldAlert class="w-3.5 h-3.5" /> 仇恨鎖定中
+        </span>
+      </template>
     </div>
 
     <!-- 怪物 HP 條與護盾 -->
